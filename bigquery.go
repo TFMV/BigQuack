@@ -1,6 +1,3 @@
-// This module implements the BigQuery Storage client for reading Arrow data.
-// It is a wrapper around the BigQuery Storage client, providing a Go interface.
-
 package bigquack
 
 import (
@@ -78,37 +75,30 @@ func NewBigQueryReadClient(ctx context.Context, opts ...option.ClientOption) (*B
 	}, nil
 }
 
-// NewBigQueryReader creates a new reader for the specified BigQuery table, returning
-// a BigQueryReader which yields Arrow Records.
-func (bq *BigQueryReadClient) NewBigQueryReader(ctx context.Context, projectID, datasetID, tableID string) (*BigQueryReader, error) {
-	arrowSerializationOptions := &storagepb.ArrowSerializationOptions{
-		BufferCompression: storagepb.ArrowSerializationOptions_LZ4_FRAME,
-	}
+type BigQueryReaderOptions struct {
+	MaxStreamCount   int32
+	TableReadOptions *storagepb.ReadSession_TableReadOptions
+}
 
-	// TableReadOptions: specify that we want Arrow data with LZ4 compression
-	readOptions := &storagepb.ReadSession_TableReadOptions{
-		OutputFormatSerializationOptions: &storagepb.ReadSession_TableReadOptions_ArrowSerializationOptions{
-			ArrowSerializationOptions: arrowSerializationOptions,
-		},
-	}
-
-	// Create read session: single stream for simplicity
+// NewBigQueryReader creates a new reader for the specified table.
+// If opts is nil, default options will be used.
+func (c *BigQueryReadClient) NewBigQueryReader(ctx context.Context, project, dataset, table string, opts *BigQueryReaderOptions) (*BigQueryReader, error) {
 	req := &storagepb.CreateReadSessionRequest{
-		Parent: fmt.Sprintf("projects/%s", projectID),
+		Parent: fmt.Sprintf("projects/%s", project),
 		ReadSession: &storagepb.ReadSession{
-			Table:       fmt.Sprintf("projects/%s/datasets/%s/tables/%s", projectID, datasetID, tableID),
+			Table:       fmt.Sprintf("projects/%s/datasets/%s/tables/%s", project, dataset, table),
 			DataFormat:  storagepb.DataFormat_ARROW,
-			ReadOptions: readOptions,
+			ReadOptions: opts.TableReadOptions,
 		},
 		MaxStreamCount: 1,
 	}
 
-	session, err := bq.client.CreateReadSession(ctx, req, bq.callOptions.CreateReadSession...)
+	session, err := c.client.CreateReadSession(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create read session: %w", err)
 	}
 	if len(session.GetStreams()) == 0 {
-		return nil, fmt.Errorf("no streams available in session for table %s", tableID)
+		return nil, fmt.Errorf("no streams available in session for table %s", table)
 	}
 
 	alloc := memory.NewGoAllocator()
@@ -126,8 +116,8 @@ func (bq *BigQueryReadClient) NewBigQueryReader(ctx context.Context, projectID, 
 
 	r := &BigQueryReader{
 		ctx:         ctx,
-		client:      bq.client,
-		callOptions: bq.callOptions,
+		client:      c.client,
+		callOptions: c.callOptions,
 		schemaBytes: schemaBytes,
 		streams:     session.GetStreams(),
 		mem:         alloc,
@@ -176,7 +166,8 @@ func (r *BigQueryReader) Read() (arrow.Record, error) {
 
 		batch := resp.GetArrowRecordBatch().GetSerializedRecordBatch()
 		if len(batch) == 0 {
-			continue // This batch is empty; proceed to next
+			// This batch is empty, or no data => keep going
+			continue
 		}
 		// Construct an arrow record from the batch
 		rec, err := r.processRecordBatch(batch)
@@ -186,7 +177,7 @@ func (r *BigQueryReader) Read() (arrow.Record, error) {
 		if rec != nil {
 			return rec, nil
 		}
-		// else continue for next response
+		// else loop for next response
 	}
 }
 
@@ -263,6 +254,6 @@ func (r *BigQueryReader) Close() error {
 		r.r = nil
 	}
 	// We don't explicitly close the gRPC stream. No official method in generated stubs.
-	// It's sufficient to discard the client/conn if needed.
+	// It's sufficient to discard the client or let the context expire.
 	return nil
 }
