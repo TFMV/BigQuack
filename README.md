@@ -13,4 +13,4 @@ BigQuack uses the [BigQuery Storage API](https://cloud.google.com/bigquery/docs/
 
 ## License
 
-MIT License - see the LICENSE file for details
+MIT License - see the [LICENSE file](LICENSE) for details
