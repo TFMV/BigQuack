@@ -20,7 +20,7 @@ func TestBQ2Duck(t *testing.T) {
 		MaxStreamCount: 2,
 		TableReadOptions: &storagepb.ReadSession_TableReadOptions{
 			SelectedFields: []string{"s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment"},
-			RowRestriction: "s_suppkey > 10",
+			RowRestriction: "s_suppkey > 0",
 		},
 	})
 	if err != nil {

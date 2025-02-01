@@ -117,8 +117,8 @@ func (bq *BigQuack) BQ2Duck(
 		}
 
 		// 4) Ingest record into DuckDB
-		if _, ingestErr := conn.IngestCreateAppend(ctx, "supplier", rec); ingestErr != nil {
-			logger.Error("failed to ingest into DuckDB table 'supplier'", zap.Error(ingestErr))
+		if _, ingestErr := conn.IngestCreateAppend(ctx, tableID, rec); ingestErr != nil {
+			logger.Error("failed to ingest into DuckDB table", zap.String("table", tableID), zap.Error(ingestErr))
 			rec.Release()
 			return totalIngestedRows, ingestErr
 		}

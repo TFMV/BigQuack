@@ -18,13 +18,7 @@ if err != nil {
 defer bq.Close()
 
 // Ingest data from BigQuery to DuckDB
-rows, err := bq.BQ2Duck(context.Background(), "test.db", "tfmv-371720", "tpch", "supplier", &bigquack.BigQueryReaderOptions{
-    MaxStreamCount: 2,
-    TableReadOptions: &storagepb.ReadSession_TableReadOptions{
-        SelectedFields: []string{"s_suppkey", "s_name", "s_address", "s_nationkey", "s_phone", "s_acctbal", "s_comment"},
-        RowRestriction: "s_suppkey > 10",
-    },
-})
+rows, err := bq.BQ2Duck(context.Background(), "test.db", "tfmv-371720", "tpch", "supplier", nil)
 if err != nil {
     t.Fatalf("failed to BQ2Duck: %v", err)
 }
