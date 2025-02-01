@@ -90,7 +90,7 @@ func (c *BigQueryReadClient) NewBigQueryReader(ctx context.Context, project, dat
 			DataFormat:  storagepb.DataFormat_ARROW,
 			ReadOptions: opts.TableReadOptions,
 		},
-		MaxStreamCount: 1,
+		MaxStreamCount: opts.MaxStreamCount,
 	}
 
 	session, err := c.client.CreateReadSession(ctx, req)
