@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/TFMV/arrowpb"
 	"github.com/apache/arrow-adbc/go/adbc"
 	"github.com/apache/arrow-adbc/go/adbc/drivermgr"
 	"github.com/apache/arrow-go/v18/arrow"
@@ -268,4 +269,53 @@ func (c *duckConn) Close() {
 	}
 	c.Connection.Close()
 	c.parent = nil
+}
+
+// QueryProto runs a SQL query and returns the results as protobuf messages,
+// using the arrowpb conversion functions. The caller is responsible for closing
+// the returned adbc.Statement when finished.
+// packageName and messagePrefix are used to generate the proto descriptor.
+func (c *duckConn) QueryProto(ctx context.Context, sql string, cfg *arrowpb.ConvertConfig, packageName, messagePrefix string) ([][]byte, adbc.Statement, int64, error) {
+	stmt, err := c.NewStatement()
+	if err != nil {
+		return nil, nil, -1, fmt.Errorf("failed to create statement: %w", err)
+	}
+
+	if err := stmt.SetSqlQuery(sql); err != nil {
+		stmt.Close()
+		return nil, nil, -1, fmt.Errorf("failed to set SQL query: %w", err)
+	}
+
+	rr, rowCount, err := stmt.ExecuteQuery(ctx)
+	if err != nil {
+		stmt.Close()
+		return nil, nil, -1, fmt.Errorf("failed to execute query: %w", err)
+	}
+
+	// Create message descriptor from schema
+	schema := rr.Schema()
+	fdp, err := arrowpb.ArrowSchemaToFileDescriptorProto(schema, packageName, messagePrefix, cfg)
+	if err != nil {
+		stmt.Close()
+		return nil, nil, -1, fmt.Errorf("failed to create descriptor: %w", err)
+	}
+	fd, err := arrowpb.CompileFileDescriptorProtoWithRetry(fdp)
+	if err != nil {
+		stmt.Close()
+		return nil, nil, -1, fmt.Errorf("failed to compile descriptor: %w", err)
+	}
+	msgDesc, err := arrowpb.GetTopLevelMessageDescriptor(fd)
+	if err != nil {
+		stmt.Close()
+		return nil, nil, -1, fmt.Errorf("failed to get message descriptor: %w", err)
+	}
+
+	// Convert all records to protos in one go
+	protoMessages, err := arrowpb.ArrowReaderToProtos(ctx, rr, msgDesc, cfg)
+	if err != nil {
+		stmt.Close()
+		return nil, nil, -1, fmt.Errorf("failed to convert records to protos: %w", err)
+	}
+
+	return protoMessages, stmt, rowCount, nil
 }
