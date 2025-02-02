@@ -1,7 +1,3 @@
-// Package bigquack provides an ADBC-based DuckDB integration with BigQuery.
-// It supports both in-memory and file-based DuckDB usage, dynamic driver path
-// detection, and reading/writing arrow data and protobuf messages.
-
 // This module implements the DuckDB driver for the Arrow ADBC interface.
 // It is a wrapper around the DuckDB C API, providing a Go interface.
 
