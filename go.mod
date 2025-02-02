@@ -6,6 +6,7 @@ toolchain go1.23.5
 
 require (
 	cloud.google.com/go/bigquery v1.65.0
+	github.com/TFMV/arrowpb v1.5.0
 	github.com/apache/arrow-adbc/go/adbc v1.4.0
 	github.com/apache/arrow-go/v18 v18.1.1-0.20250116162745-f533d2066dee
 	github.com/googleapis/gax-go/v2 v2.14.1
@@ -13,12 +14,14 @@ require (
 	go.uber.org/zap v1.27.0
 	google.golang.org/api v0.216.0
 	google.golang.org/grpc v1.69.4
+	google.golang.org/protobuf v1.36.4
 )
 
 require (
 	cloud.google.com/go/auth v0.13.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.6 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -51,7 +54,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250102185135-69823020774d // indirect
-	google.golang.org/protobuf v1.36.4 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
