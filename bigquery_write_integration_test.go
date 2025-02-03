@@ -2,28 +2,36 @@ package bigquack_test
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	BigQuack "github.com/TFMV/BigQuack"
+	"github.com/TFMV/arrowpb"
+	"google.golang.org/api/option"
+	"google.golang.org/grpc/status"
 
+	"cloud.google.com/go/bigquery/storage/apiv1/storagepb"
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/memory"
 )
 
 func TestBigQueryWriteIntegration(t *testing.T) {
-	//BIGQUERY_SERVICE_ACCOUNT_JSON := os.Getenv("BIGQUERY_SERVICE_ACCOUNT_JSON")
-	//BIGQUERY_PROJECT := os.Getenv("BIGQUERY_PROJECT")
-	//BIGQUERY_DATASET := os.Getenv("BIGQUERY_DATASET")
-	//BIGQUERY_TABLE := os.Getenv("BIGQUERY_TABLE")
-
+	// Use environment variables or constants.
 	BIGQUERY_SERVICE_ACCOUNT_JSON := "sa.json"
 	BIGQUERY_PROJECT := "tfmv-371720"
 	BIGQUERY_DATASET := "tfmv"
-	BIGQUERY_TABLE := "users"
+	BIGQUERY_TABLE := "foo"
 
-	if BIGQUERY_SERVICE_ACCOUNT_JSON == "" || BIGQUERY_PROJECT == "" || BIGQUERY_DATASET == "" || BIGQUERY_TABLE == "" {
+	// Read the service account JSON from file.
+	creds, err := os.ReadFile(BIGQUERY_SERVICE_ACCOUNT_JSON)
+	if err != nil {
+		t.Fatalf("failed to read service account JSON file: %v", err)
+	}
+
+	if string(creds) == "" || BIGQUERY_PROJECT == "" || BIGQUERY_DATASET == "" || BIGQUERY_TABLE == "" {
 		t.Skip("Skipping integration test; BIGQUERY_SERVICE_ACCOUNT_JSON, BIGQUERY_PROJECT, BIGQUERY_DATASET, and BIGQUERY_TABLE must be set")
 	}
 
@@ -31,8 +39,7 @@ func TestBigQueryWriteIntegration(t *testing.T) {
 
 	// Define a simple Arrow schema for writing.
 	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "id", Type: arrow.PrimitiveTypes.Int32},
-		{Name: "name", Type: arrow.BinaryTypes.String},
+		{Name: "i", Type: arrow.BinaryTypes.String},
 	}, nil)
 
 	// Build a simple Arrow record with one row.
@@ -40,22 +47,45 @@ func TestBigQueryWriteIntegration(t *testing.T) {
 	builder := array.NewRecordBuilder(alloc, schema)
 	defer builder.Release()
 
-	intBuilder := builder.Field(0).(*array.Int32Builder)
-	strBuilder := builder.Field(1).(*array.StringBuilder)
-	intBuilder.AppendValues([]int32{1}, nil)
+	strBuilder := builder.Field(0).(*array.StringBuilder)
 	strBuilder.AppendValues([]string{"Alice"}, nil)
 
 	record := builder.NewRecord()
 	defer record.Release()
 
+	// Use ConvertConfig with wrapper types disabled
+	cfg := arrowpb.ConvertConfig{
+		UseWrapperTypes:        false,
+		UseWellKnownTimestamps: false,
+		UseProto2Syntax:        true,
+	}
+
+	// (Optional) Log the generated descriptor for debugging.
+	fdp, err := arrowpb.ArrowSchemaToFileDescriptorProto(schema, "bigquack", "ManagedMsg", &cfg)
+	if err != nil {
+		t.Fatalf("failed to convert Arrow schema to FileDescriptorProto: %v", err)
+	}
+	t.Logf("Generated FileDescriptorProto: %v", fdp)
+
 	// Create the BigQuery record writer.
-	writer, err := BigQuack.NewBigQueryManagedRecordWriter(ctx, BIGQUERY_SERVICE_ACCOUNT_JSON, schema, BIGQUERY_PROJECT, BIGQUERY_DATASET, BIGQUERY_TABLE, nil)
+	writer, err := BigQuack.NewBigQueryManagedRecordWriter(ctx, string(creds), schema, BIGQUERY_PROJECT, BIGQUERY_DATASET, BIGQUERY_TABLE, &BigQuack.BigQueryWriteOptions{
+		WriteStreamType: storagepb.WriteStream_COMMITTED,
+		DataFormat:      storagepb.DataFormat_ARROW,
+	}, option.WithCredentialsJSON(creds))
 	if err != nil {
 		t.Fatalf("failed to create BigQueryRecordWriter: %v", err)
 	}
 
-	// Write the Arrow record to BigQuery.
-	if err := writer.WriteRecord(record); err != nil {
+	err = writer.WriteRecord(record)
+	if err != nil {
+		fmt.Printf("Append error: %v\n", err)
+		st, ok := status.FromError(err)
+		if ok {
+			fmt.Printf("Error status: %v\n", st.Code())
+			for _, detail := range st.Details() {
+				fmt.Printf("Row error detail: %v\n", detail)
+			}
+		}
 		t.Fatalf("failed to write record: %v", err)
 	}
 

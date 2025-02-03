@@ -6,7 +6,7 @@ toolchain go1.23.5
 
 require (
 	cloud.google.com/go/bigquery v1.65.0
-	github.com/TFMV/arrowpb v1.5.0
+	github.com/TFMV/arrowpb v1.9.0
 	github.com/apache/arrow-adbc/go/adbc v1.4.0
 	github.com/apache/arrow-go/v18 v18.1.1-0.20250116162745-f533d2066dee
 	github.com/googleapis/gax-go/v2 v2.14.1
@@ -40,6 +40,7 @@ require (
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0 // indirect
