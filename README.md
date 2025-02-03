@@ -2,7 +2,7 @@
 
 BigQuack is a Go solution that facilitates a high-performance pipeline between Google BigQuery and DuckDB, leveraging the Apache Arrow ecosystem.
 
-*The DuckDB implementation draws from the [loicalleyne/couac](https://github.com/loicalleyne/couac) implementation.*
+*The DuckDB implementation is draws from the [loicalleyne/couac](https://github.com/loicalleyne/couac) implementation.*
 
 ## Under the Hood
 
